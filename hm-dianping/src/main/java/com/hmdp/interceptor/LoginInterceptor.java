@@ -1,31 +1,23 @@
 package com.hmdp.interceptor;
 
 
-import com.hmdp.dto.UserDTO;
-import com.hmdp.entity.User;
 import com.hmdp.utils.UserHolder;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 public class LoginInterceptor implements HandlerInterceptor {
+    private StringRedisTemplate stringRedisTemplate;
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        //1.获取session
-        HttpSession session = request.getSession();
-        //2.获取session中的用户信息
-        Object user = session.getAttribute("user");
-        //3.判断用户信息是否存在
-        if (user == null) {
+        //判断是否需要拦截
+        if(UserHolder.getUser()==null){
             response.setStatus(401);
-            throw new RuntimeException("用户未登录");
+            return false;
         }
-        //保存用户信息到ThreadLocal
-        UserHolder.saveUser((UserDTO) user);
-        //5.存在，放行
         return true;
     }
 

@@ -18,7 +18,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {private Stri
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         //1.获取请求头里的token
         String token=request.getHeader("authorization");
-        if(String.valueOf(token).isEmpty()){
+        if(token==null||token.trim().isEmpty()){
             return true;
         }
         //2.获取redis里的用户信息

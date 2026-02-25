@@ -21,9 +21,21 @@ public class WebMvcConfig implements WebMvcConfigurer {
                             "/shop/**",
                             "/voucher/**",
                             "upload/**",
-                            "/user/login").order(1);
+                            "/user/login",
+                            "/doc.html",
+                            "/webjars/**",
+                            "/v3/api-docs/**",
+                            "/swagger-resources/**",
+                            "/swagger-ui/**").order(1);
 
-                registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
+                registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").addPathPatterns("/**")
+                    // 排除 Knife4j/Swagger 所有路径
+                    .excludePathPatterns(
+                            "/doc.html",
+                            "/webjars/**",
+                            "/v3/api-docs/**",
+                            "/swagger-resources/**",
+                            "/swagger-ui/**").order(0);
         }
 
 

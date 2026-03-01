@@ -38,17 +38,17 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         //解决缓存穿透
         //Shop shop = queryWithPassThrough(id);
         //解决缓存穿透（工具类）
-       /* Shop shop = cacheClient.queryWithPassThrough("cache:shop:", id, Shop.class, this::getById, 30L, TimeUnit.MINUTES);
+       Shop shop = cacheClient.queryWithPassThrough("cache:shop:", id, Shop.class, this::getById, 30L, TimeUnit.MINUTES);
          if(shop==null){
              return Result.fail("商铺不存在");
          }
-         return Result.ok(shop);*/
+         return Result.ok(shop);
         //通过工具类解决缓存击穿问题
-        Shop shop = cacheClient.queryWithLogicalExpire("cache:shop:", id, Shop.class, this::getById, 30L, TimeUnit.MINUTES);
+    /*    Shop shop = cacheClient.queryWithLogicalExpire("cache:shop:", id, Shop.class, this::getById, 30L, TimeUnit.MINUTES);
         if(shop==null) {
             return Result.fail("商铺不存在");
         }
-        return Result.ok(shop);
+        return Result.ok(shop);*/
         //互斥锁解决缓存击穿
         //Shop shop = queryWithMutex(id);
  /*       // 1.定义redis中的key
@@ -76,6 +76,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop), 30, TimeUnit.MINUTES);
         return Result.ok(shop);*/
     }
+    //解决缓存击穿
 /*    public Shop queryWithMutex(Long id){//解决缓存击穿
         // 1.定义redis中的key
         String key = "cache:shop:" + id;

@@ -10,7 +10,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.RedisLock;
 import com.hmdp.utils.UserHolder;
+import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,7 @@ import java.time.LocalDateTime;
  * @since 2021-12-22
  */
 @Service
+@Slf4j
 
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
     @Resource
@@ -36,10 +40,13 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private RedissonClient redissonClient;
     @Transactional
     public Result seckillVoucher(Long voucherId){
         // 1.查询优惠券信息
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
+        log.info("查询到的优惠券信息:{}",voucher);
         // 2.判断是否存在
         if(voucher == null){
             return Result.fail("优惠券不存在");
@@ -59,23 +66,29 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("优惠券库存不足");
         }
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
+        //获取锁对象
+        /*RedisLock redisLock = new RedisLock("lock:order:" + userId, stringRedisTemplate);*/
+        RLock redisLock = redissonClient.getLock("lock:order:" + userId);
+        /*boolean isLock = redisLock.tryLock(1200);*/
+        //尝试获取锁
+        boolean isLock = redisLock.tryLock();
+        if (!isLock) {
+            return Result.fail("不允许重复下单");
+        }
+        try {
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
             return proxy.getResult(voucherId);
+        } finally {
+            redisLock.unlock();
         }
+
     }
 
     @Transactional
     public Result getResult(Long voucherId) {
         //5.5实现一人一单
         Long userId = UserHolder.getUser().getId();
-        RedisLock redisLock = new RedisLock("order:" + userId, stringRedisTemplate);
-        //尝试获取锁
-        try {
-            boolean isLock = redisLock.tryLock(120);
-            if (!isLock) {
-                return Result.fail("请勿重复下单");
-            }
+
             int exists = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
             if (exists > 0) {
                 return Result.fail("用户已经购买过一次了");
@@ -96,10 +109,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
             // 8.返回订单id
             return Result.ok(voucherOrder.getId());
-        }
-        finally {
-            redisLock.unlock();
-        }
+
+
     }
 
 }

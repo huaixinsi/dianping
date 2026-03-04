@@ -28,7 +28,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                             "/swagger-resources/**",
                             "/swagger-ui/**").order(1);
 
-                registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").addPathPatterns("/**")
+                registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**")
                     // 排除 Knife4j/Swagger 所有路径
                     .excludePathPatterns(
                             "/doc.html",

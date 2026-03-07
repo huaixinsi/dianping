@@ -9,10 +9,26 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.Resource;
 
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
         @Resource
         private StringRedisTemplate stringRedisTemplate;
+
+        @Override
+        public void addCorsMappings(CorsRegistry registry) {
+            registry.addMapping("/**")
+                    .allowedOrigins(
+                            "http://localhost:5173",
+                            "http://127.0.0.1:5173"
+                    )
+                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                    .allowedHeaders("*")
+                    .allowCredentials(true)
+                    .maxAge(3600);
+        }
+
         //注册自定义拦截器
         public void addInterceptors(InterceptorRegistry registry) {
             registry.addInterceptor(new LoginInterceptor())

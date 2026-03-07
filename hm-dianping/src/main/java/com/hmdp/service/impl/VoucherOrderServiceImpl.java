@@ -11,7 +11,9 @@ import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -46,13 +48,15 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private StringRedisTemplate stringRedisTemplate;
     @Resource
     private RedissonClient redissonClient;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
     private static final  DefaultRedisScript<Long> SECKILL_SCRIPT;
     static {
         SECKILL_SCRIPT = new DefaultRedisScript<>();
        SECKILL_SCRIPT.setLocation(new ClassPathResource("seckill.lua"));
        SECKILL_SCRIPT.setResultType(Long.class);
     }
-    // 阻塞队列，没有下单就不会有订单信息，消费者线程一直在等待
+    /*// 阻塞队列，没有下单就不会有订单信息，消费者线程一直在等待
     private BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(1024*1024);
     //线程池
     private static final ExecutorService SECKILL_ORDER_EXECUTOR = Executors.newSingleThreadExecutor();
@@ -96,7 +100,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                 redisLock.unlock();
             }
         }
-    }
+    }*/
     private IVoucherOrderService proxy;
     @Transactional
     public Result seckillVoucher(Long voucherId){
@@ -114,9 +118,18 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if(r != 0){
             return Result.fail(result == 1 ? "库存不足" : "不能重复下单");
         }
+        //获取订单id,并把下单信息发送给消息队列
+        long orderId = redisIdWorker.nextId("order");
+         VoucherOrder voucherOrder = new VoucherOrder();
+        voucherOrder.setId(orderId);
+        voucherOrder.setUserId(userId);
+        voucherOrder.setVoucherId(voucherId);
+
+        // 发送给消息队列
+        rabbitTemplate.convertAndSend("seckillOrderExchange","seckill",voucherOrder);
 
         //3.为0，获取订单id，把下单信息保存在阻塞队列中
-        long orderId = redisIdWorker.nextId("order");
+/*        long orderId = redisIdWorker.nextId("order");
         //保存下单信息
         VoucherOrder voucherOrder = new VoucherOrder();
         voucherOrder.setVoucherId(voucherId);
@@ -125,7 +138,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         //获取代理对象
          proxy = (IVoucherOrderService) AopContext.currentProxy();
         //保存到阻塞队列中
-        orderTasks.add(voucherOrder);
+        orderTasks.add(voucherOrder);*/
         //4.返回订单id
         return Result.ok(orderId);
 
